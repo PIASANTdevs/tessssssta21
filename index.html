@@ -38,7 +38,6 @@
     background: #000; object-fit: contain;
   }
 
-  /* Постер */
   .poster {
     position: absolute; inset: 0;
     background-size: cover;
@@ -72,7 +71,6 @@
   }
   .poster-sub { font-size: 13px; color: var(--muted); }
 
-  /* Loader */
   .loader {
     position: absolute; inset: 0;
     display: grid; place-items: center;
@@ -89,7 +87,6 @@
   }
   @keyframes spin { to { transform: rotate(360deg); } }
 
-  /* Error */
   .error {
     position: absolute; inset: 0;
     display: none; place-items: center;
@@ -108,7 +105,6 @@
   }
   .error .retry:hover { filter: brightness(1.1); transform: translateY(-1px); }
 
-  /* Flash при клике */
   .click-flash {
     position: absolute; top: 50%; left: 50%;
     transform: translate(-50%,-50%);
@@ -125,7 +121,6 @@
     100% { opacity: 0; transform: translate(-50%,-50%) scale(1.3); }
   }
 
-  /* Верхняя панель */
   .top-bar {
     position: absolute; top: 0; left: 0; right: 0;
     padding: 16px 18px;
@@ -141,7 +136,6 @@
     text-shadow: 0 1px 3px rgba(0,0,0,.6);
   }
 
-  /* Контролы */
   .controls {
     position: absolute; left: 0; right: 0; bottom: 0;
     background: linear-gradient(to top, rgba(0,0,0,.95) 0%, rgba(0,0,0,.7) 60%, transparent 100%);
@@ -242,7 +236,6 @@
 
   .spacer { flex: 1; }
 
-  /* Quality selector */
   .quality { position: relative; }
   .quality-btn {
     width: auto; padding: 0 12px; height: 40px;
@@ -270,7 +263,6 @@
   .quality-menu .opt.active { color: var(--accent); }
   .quality-menu .opt.active::after { content: '✓'; }
 
-  /* Boot статус */
   .boot {
     position: absolute; inset: 0;
     display: grid; place-items: center;
@@ -394,7 +386,7 @@
    ID ВИДЕО
    Возьми из ссылки rutube.ru/video/XXXXXXXX/
    ========================================================= */
-const VIDEO_ID = 'cae96c24f81419ccd444ed151a169985';
+const VIDEO_ID = '48a7dd6b620b30713b614f38c00a4739';
 
 /* =========================================================
    DOM
@@ -480,15 +472,19 @@ async function fetchHlsUrl(videoId) {
 
   if (!json) throw new Error('Все CORS-прокси недоступны. Последняя ошибка: ' + (lastError?.message || 'unknown'));
 
-  // Проверка блокировки
-  if (json.detail && /block|geo|запрещ|недоступ|удал/i.test(json.detail)) {
-    throw new Error('Видео заблокировано: ' + json.detail);
+  if (json.detail) {
+    let reason = '';
+    if (typeof json.detail === 'string') {
+      reason = json.detail;
+    } else if (typeof json.detail === 'object') {
+      reason = json.detail.name || json.detail.message || JSON.stringify(json.detail);
+    }
+    throw new Error('Видео заблокировано: ' + reason);
   }
   if (json.acl_access && json.acl_access.allowed === false) {
     throw new Error('Доступ запрещён: ' + (json.acl_access.err_text || 'региональное ограничение'));
   }
 
-  // Рекурсивный поиск m3u8 в любой части ответа
   const m3u8 = findM3u8(json);
 
   if (!m3u8) {
@@ -506,16 +502,13 @@ async function fetchHlsUrl(videoId) {
   };
 }
 
-/* Рекурсивный поиск m3u8 — работает даже если структура меняется */
 function findM3u8(obj, depth = 0) {
   if (depth > 6 || obj === null || typeof obj !== 'object') return null;
 
-  // Известные пути
   if (obj.video_balancer?.m3u8) return obj.video_balancer.m3u8;
   if (obj.live_streams?.[0]?.m3u8) return obj.live_streams[0].m3u8;
   if (typeof obj.m3u8 === 'string' && obj.m3u8.includes('.m3u8')) return obj.m3u8;
 
-  // Общий поиск по всем ключам
   for (const k in obj) {
     const v = obj[k];
     if (typeof v === 'string' && v.includes('.m3u8')) return v;
